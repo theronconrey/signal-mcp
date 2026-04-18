@@ -1,0 +1,27 @@
+# Reference unit for signal-cli in HTTP daemon mode.
+# Install as a template unit: signal-cli@.service
+# Enable for a specific account: systemctl --user enable --now signal-cli@+1XXXXXXXXXX
+#
+# Systemd escapes '+' in instance names — use the literal E.164 number when
+# enabling; systemd handles the escaping automatically.
+#
+# To install:
+#   cp signal-cli.service ~/.config/systemd/user/signal-cli@.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now signal-cli@+1XXXXXXXXXX
+
+[Unit]
+Description=signal-cli daemon (HTTP mode) for %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/signal-cli --account %i daemon --http 127.0.0.1:8080
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

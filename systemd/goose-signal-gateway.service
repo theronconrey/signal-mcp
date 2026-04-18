@@ -1,0 +1,18 @@
+[Unit]
+Description=Goose Signal Gateway
+Documentation=https://github.com/theronconrey/goose-signal-gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/theron/Projects/Personal/goose-signal-gateway/.venv/bin/goose-signal start
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
