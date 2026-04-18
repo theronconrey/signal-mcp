@@ -695,6 +695,17 @@ This phase is **required**, not optional — it's the primary differentiator fro
 
 This phase's deliverable is as much documentation and an upstream conversation as it is code.
 
+**Findings (2026-04-18):** Sessions created by the gateway via `POST /agent/start` are fully functional in goosed — messages route, replies stream, token counts accumulate. However, **they do not appear in Goose Desktop's session sidebar.** Investigation showed:
+
+- Session objects are structurally identical to Desktop-created sessions (`session_type: user`, same fields)
+- goosed's `GET /sessions` returns them correctly
+- The Desktop tracks sessions via `~/.local/share/goose/projects.json` (`last_session_id` per project path) — a local state file it manages itself
+- The Desktop session list appears to reflect its own local state rather than polling goosed for all sessions
+
+**Root cause:** Desktop session list does not react to externally-created sessions. It is a local view, not a live query against goosed.
+
+**Recommended action:** File an upstream issue against `block/goose` requesting that the Desktop session list poll `GET /sessions` and surface externally-created sessions. The gateway already sets `session_type: user` and produces proper names (goosed auto-names sessions from the first message). No gateway-side change needed — this is purely a Desktop UX gap.
+
 **Commit:** `phase 7b: session metadata`
 
 ### Phase 7c: Desktop → Signal forwarding (optional)
