@@ -4,7 +4,7 @@ The goal is a self-hosted MCP server that gives any AI agent bidirectional acces
 
 Built around [Goose](https://github.com/block/goose) and [signal-cli](https://github.com/AsamK/signal-cli).
 
-> **Status:** Prototype. Core loop is fully implemented and smoke-tested. See [Known limitations](#known-limitations).
+> **Status:** Prototype. Core loop is fully implemented and smoke-tested. See [Current limitations](#current-limitations).
 
 ---
 
