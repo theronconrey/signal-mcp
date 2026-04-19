@@ -36,37 +36,6 @@ goosed  ──────────────────────► Mi
 
 ---
 
-## Goose Desktop Extension
-
-Once the gateway is running, register it in Goose Desktop:
-
-1. Select **Extensions** in the left column
-2. Click **Add custom extension**
-3. Fill in the fields as follows:
-
-![Add custom extension dialog](docs/goose-add-extension.png)
-
-| Field | Value |
-|-------|-------|
-| Extension Name | `Signal MCP` |
-| Type | `Streamable HTTP` *(change from the default STDIO)* |
-| Endpoint | `http://127.0.0.1:7322/mcp` |
-| Header name | `X-Gateway-Key` |
-| Header value | *(your MCP secret — printed by `goose-signal setup`)* |
-
-4. Click **Add Extension**
-
-### Available tools
-
-| Tool | Description |
-|------|-------------|
-| `get_signal_identity` | Returns the Signal account number the gateway is running as |
-| `list_signal_contacts` | Lists contacts with active sessions (numbers Goose can message) |
-| `send_signal_message(phone_number, message)` | Sends a Signal message to a known contact |
-
-**Contact gating:** a phone number must initiate a conversation through the gateway (passing the pairing flow) before the agent can message them. The agent cannot cold-call arbitrary numbers.
-
----
 
 ## Prerequisites
 
@@ -174,6 +143,38 @@ uv run goose-signal pairing revoke +16125551234   # remove approved sender
 ```
 
 Once approved, the sender can converse with Goose — and Goose can message them back via the MCP `send_signal_message` tool.
+
+---
+
+## Goose Desktop Extension
+
+Once the gateway is running, register it in Goose Desktop:
+
+1. Select **Extensions** in the left column
+2. Click **Add custom extension**
+3. Fill in the fields as follows:
+
+![Add custom extension dialog](docs/goose-add-extension.png)
+
+| Field | Value |
+|-------|-------|
+| Extension Name | `Signal MCP` |
+| Type | `Streamable HTTP` *(change from the default STDIO)* |
+| Endpoint | `http://127.0.0.1:7322/mcp` |
+| Header name | `X-Gateway-Key` |
+| Header value | *(your MCP secret — printed by `goose-signal setup`)* |
+
+4. Click **Add Extension**
+
+### Available tools
+
+| Tool | Description |
+|------|-------------|
+| `get_signal_identity` | Returns the Signal account number the gateway is running as |
+| `list_signal_contacts` | Lists contacts with active sessions (numbers Goose can message) |
+| `send_signal_message(phone_number, message)` | Sends a Signal message to a known contact |
+
+**Contact gating:** a phone number must initiate a conversation through the gateway (passing the pairing flow) before the agent can message them. The agent cannot cold-call arbitrary numbers.
 
 ---
 
