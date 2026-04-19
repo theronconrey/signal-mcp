@@ -1,12 +1,13 @@
 # Handoff Report
 
-**Date:** 2026-04-18
-**goosed version:** v1.30.0 (Goose Desktop, Fedora)
-**signal-cli version:** 0.13+
+**Date:** 2026-04-19  
+**goosed version:** v1.30.0 (Goose Desktop, Fedora)  
+**signal-cli version:** 0.14.2  
+**Repo:** theronconrey/signal-mcp
 
 ---
 
-## Phases completed
+## Status
 
 | Phase | Status | Notes |
 |-------|--------|-------|
@@ -18,93 +19,77 @@
 | 4 — Pairing | ✅ Complete | `pairing.py` |
 | 5 — ACP client | ✅ Complete | `acp_client.py` — see deviations below |
 | 6 — Approvals | ✅ Complete | `approvals.py` |
-| 7 — Gateway main loop | ✅ Complete | Typing indicators, live edits, graceful drain |
-| 7b — Session metadata & Desktop visibility | ✅ Complete | Documentation only; no code change needed |
-| 7c — Desktop → Signal forwarding | ⏭ Deferred | Optional; see plan |
-| 8 — CLI | 🔲 Not started | |
-| 9 — systemd units | ✅ Complete | `systemd/` directory |
-| 10 — Documentation | ✅ Complete | `README.md` rewritten |
-| 11 — End-to-end smoke test | 🔲 Not started | |
+| 7 — Gateway main loop | ✅ Complete | Typing indicators, read receipts, graceful drain |
+| 7b — Session metadata & Desktop visibility | ✅ Complete | Documentation only; upstream issue pending |
+| 7c — Desktop → Signal forwarding | ⏭ Deferred | Blocked on Desktop session visibility upstream fix |
+| 8 — CLI | ✅ Complete | `cli.py` — start, stop, status, logs, doctor, pairing, sessions, setup |
+| 9 — systemd units | ✅ Complete | `systemd/` directory; service running on borealis.home |
+| 10 — Documentation | ✅ Complete | README rewritten to reflect signal-mcp direction |
+| 11 — End-to-end smoke test | ✅ Complete | Tested live; read receipts, replies, MCP tools all verified |
+| 12 — MCP server | ✅ Complete | `mcp_server.py` — bidirectional Signal via MCP |
 
 ---
 
-## Deviations from spec
+## What's working today
 
-### goosed API vs. ACP spec (Phase 5)
+- Signal → Goose: inbound messages create/resume goosed sessions, replies sent back to Signal
+- Read receipts (filled double-ticks) sent immediately on message receipt
+- Typing indicators while Goose is processing
+- Pairing flow for unknown senders
+- Per-conversation session locking (serialised per DM)
+- Message deduplication
+- MCP server on port 7322 with three tools:
+  - `get_signal_identity` — returns gateway Signal number
+  - `list_signal_contacts` — lists contacts with active sessions
+  - `send_signal_message` — sends Signal message from any MCP client
+- Auth: `X-Gateway-Key` header validated against `gateway_secret` in config
+- systemd user service, enabled and running
 
-goosed v1.30.0 implements a custom REST/SSE API, not the standard Agent Client
-Protocol described in the plan. All deviations are noted inline in
-`acp_client.py`.
+---
+
+## signal-cli 0.14.2 quirks
+
+| Method | Status | Workaround |
+|--------|--------|------------|
+| `editMessage` | -32601 not implemented | Dropped live-edit placeholder; send final reply only |
+| `sendReadReceipt` | -32601 not implemented | Use `sendReceipt` + `target-timestamps` (hyphenated) |
+
+---
+
+## Deviations from original spec
+
+### goosed API (Phase 5)
 
 | Spec | Reality | Impact |
 |------|---------|--------|
 | `initialize` handshake | `GET /status` only | Low — health check works |
-| `session_new` accepts metadata | `POST /agent/start` takes `working_dir` only | Metadata silently dropped; `display_name` not set |
+| `session/new` accepts metadata | `POST /agent/start` takes `working_dir` only | `display_name` not set |
 | `session/load` for history replay | No such endpoint | `session_load()` raises `NotImplementedError` |
-| `resolve_permission` | No such endpoint | `resolve_permission()` raises `NotImplementedError`; approval flow sends the Signal prompt but cannot actually resolve via ACP |
-| `permission_request` notifications via `/reply` | Not surfaced | Approval flow (Phase 6) is fully implemented but will never trigger with goosed v1.30.0 |
-| Streaming event types: `agent_message_chunk`, etc. | `Ping / Message / Finish / Error` | Mapped in `acp_client.py` |
-
-### Session store (Phase 3)
-
-The plan specified `session_map.py` with `ConversationKey(kind, identifier)` and
-file persistence. An earlier `session_store.py` (in-memory only) was replaced
-and deleted.
+| `resolve_permission` | No such endpoint | Approval flow sends Signal prompt but ACP handshake cannot complete |
+| `permission_request` notifications | Not surfaced by goosed v1.30.0 | Approval flow implemented but never triggered |
 
 ### `manage_goosed` not implemented
 
-The plan's `acp.manage_goosed: true` mode (fork goosed as a child process) is
-not implemented. The gateway assumes goosed is already running (started by Goose
-Desktop or manually). This is the common case for the prototype.
+Gateway assumes goosed is already running. Auto-spawning goosed as a child process is not implemented.
 
 ---
 
 ## Open upstream issues to file
 
 1. **Desktop session list does not surface externally-created sessions.**
-   Target: `block/goose`. Details in `docs/desktop-integration.md`.
-   Proposed fix: Desktop polls `GET /sessions` and adds non-local sessions to
-   the sidebar with a visual indicator.
+   goosed sessions created by the gateway appear in `GET /sessions` but not in Desktop's sidebar. Desktop reads local state only; no polling or WebSocket notification for externally-created sessions. Fix: goosed should emit a `sessionCreated` WebSocket event; Desktop should call `loadSessions()` on receipt.
 
 2. **`POST /agent/start` has no metadata field.**
-   Target: `block/goose`. A `display_name` or `tags` field would let the gateway
-   produce a readable session name (e.g. `Signal: +16125551234`) visible in
-   Desktop once issue #1 is resolved.
+   A `display_name` or `tags` field would produce readable session names in Desktop once issue #1 is resolved.
 
 3. **No `resolve_permission` endpoint.**
-   Target: `block/goose` ACP spec. Approval flow is fully implemented on the
-   Signal side but cannot complete the ACP handshake.
-
----
-
-## Desktop visibility (Phase 7b)
-
-Sessions created by the gateway **exist in goosed** and are returned by
-`GET /sessions`, but **do not appear in Goose Desktop's session sidebar**.
-Desktop uses a local `projects.json` state file rather than polling goosed.
-
-See `docs/desktop-integration.md` for the full investigation, a manual
-verification procedure, and the proposed upstream fix.
+   Approval flow is fully implemented on the Signal side but cannot complete the ACP handshake.
 
 ---
 
 ## Next steps
 
-1. File the three upstream issues listed above.
-2. Complete Phase 8 (CLI: `goose-signal start`, `pairing approve/deny/list`, etc.)
-3. Complete Phase 9 (systemd units).
-4. Complete Phase 10 (README).
-5. Run Phase 11 end-to-end smoke test.
-6. Revisit Phase 7c (Desktop → Signal forwarding) once Desktop session visibility
-   is resolved upstream.
-
----
-
-## One-liner to run
-
-```bash
-git clone https://github.com/theronconrey/goose-signal-gateway
-cd goose-signal-gateway
-uv sync
-uv run main.py --account +1XXXXXXXXXX
-```
+1. File the three upstream issues against `block/goose`
+2. Add `gateway_secret` generation to the `goose-signal setup` wizard (currently requires manual config edit)
+3. Phase 7c — Desktop → Signal forwarding (blocked on upstream session visibility fix)
+4. Consider publishing to PyPI once setup wizard handles MCP config automatically
