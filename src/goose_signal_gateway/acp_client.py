@@ -27,6 +27,10 @@ class AcpStreamInterruptedError(Exception):
     """Raised when the SSE stream drops unexpectedly mid-prompt."""
 
 
+class AcpConnectError(AcpStreamInterruptedError):
+    """Raised when the connection to goosed fails entirely (port changed, process restarted)."""
+
+
 @dataclass(frozen=True)
 class SessionSummary:
     id: str
@@ -165,6 +169,10 @@ class AcpClient:
                         break
                     elif kind == "Error":
                         raise RuntimeError(f"goosed error: {event.get('error')}")
+        except httpx.ConnectError as exc:
+            raise AcpConnectError(
+                f"Cannot connect to goosed for session {session_id}"
+            ) from exc
         except (httpx.RemoteProtocolError, httpx.ReadError) as exc:
             raise AcpStreamInterruptedError(
                 f"SSE stream dropped for session {session_id}"

@@ -9,7 +9,7 @@ import logging
 import time
 from pathlib import Path
 
-from .acp_client import AcpClient, AcpStreamInterruptedError
+from .acp_client import AcpClient, AcpConnectError, AcpStreamInterruptedError
 from .approvals import ApprovalCoordinator
 from .dedup import MessageDeduplicator
 from .goosed_client import discover_goosed
@@ -141,6 +141,22 @@ class Gateway:
         server = uvicorn.Server(config)
         await server.serve()
 
+    # ── goosed reconnection ───────────────────────────────────────────────────
+
+    async def _reconnect_acp(self) -> bool:
+        """Re-discover goosed and reconnect. Returns True on success."""
+        try:
+            if self._acp:
+                await self._acp.close()
+            config = discover_goosed()
+            self._acp = AcpClient(config)
+            await self._acp.initialize()
+            log.info("Reconnected to goosed at port %d", config.port)
+            return True
+        except Exception as e:
+            log.error("Failed to reconnect to goosed: %s", e)
+            return False
+
     # ── main loop ─────────────────────────────────────────────────────────────
 
     def _conv_lock(self, key: ConversationKey) -> asyncio.Lock:
@@ -195,7 +211,15 @@ class Gateway:
         await self._signal.send_read_receipt(sender, [msg.timestamp])
 
         async with self._conv_lock(key):
-            await self._run_conversation(key, text)
+            try:
+                await self._run_conversation(key, text)
+            except Exception as e:
+                log.error("Unhandled error in conversation with %s: %s", sender, e)
+                try:
+                    await self._signal.send(sender, "(Something went wrong — please try again)")
+                    await self._signal.send_typing(sender, stop=True)
+                except Exception:
+                    pass
 
     # ── conversation handler ──────────────────────────────────────────────────
 
@@ -219,34 +243,46 @@ class Gateway:
 
         buffer = ""
 
-        try:
-            async for notif in self._acp.session_prompt(session_id, text):
-                if notif.kind == "agent_message_chunk":
-                    for part in notif.payload.get("content", []):
-                        if part.get("type") == "text":
-                            buffer += part["text"]
+        for attempt in range(2):
+            try:
+                async for notif in self._acp.session_prompt(session_id, text):
+                    if notif.kind == "agent_message_chunk":
+                        for part in notif.payload.get("content", []):
+                            if part.get("type") == "text":
+                                buffer += part["text"]
 
-                elif notif.kind == "permission_request":
-                    tool_name = notif.payload.get("tool", "unknown")
-                    arguments = notif.payload.get("arguments", {})
-                    request_id = notif.payload.get("id", "")
-                    log.info("Permission request for %s: %s", session_id, tool_name)
-                    await self._approvals.request(
-                        session_id=session_id,
-                        request_id=request_id,
-                        signal_conversation=key,
-                        tool_name=tool_name,
-                        arguments=arguments,
-                    )
+                    elif notif.kind == "permission_request":
+                        tool_name = notif.payload.get("tool", "unknown")
+                        arguments = notif.payload.get("arguments", {})
+                        request_id = notif.payload.get("id", "")
+                        log.info("Permission request for %s: %s", session_id, tool_name)
+                        await self._approvals.request(
+                            session_id=session_id,
+                            request_id=request_id,
+                            signal_conversation=key,
+                            tool_name=tool_name,
+                            arguments=arguments,
+                        )
 
-                elif notif.kind == "session_complete":
-                    break
+                    elif notif.kind == "session_complete":
+                        break
+                break  # success — exit retry loop
 
-        except AcpStreamInterruptedError as e:
-            log.error("Stream interrupted for session %s: %s", session_id, e)
-            await self._signal.send(sender, "(Connection to Goose lost — please try again)")
-            await self._signal.send_typing(sender, stop=True)
-            return
+            except AcpConnectError as e:
+                log.warning("goosed connection lost (attempt %d/2): %s", attempt + 1, e)
+                if attempt == 0 and await self._reconnect_acp():
+                    log.info("Retrying after reconnect...")
+                    continue
+                log.error("Could not reconnect to goosed for session %s", session_id)
+                await self._signal.send(sender, "(Connection to Goose lost — please try again)")
+                await self._signal.send_typing(sender, stop=True)
+                return
+
+            except AcpStreamInterruptedError as e:
+                log.error("Stream interrupted for session %s: %s", session_id, e)
+                await self._signal.send(sender, "(Connection to Goose lost — please try again)")
+                await self._signal.send_typing(sender, stop=True)
+                return
 
         final = buffer.strip() or "(no reply)"
         if final == "(no reply)":

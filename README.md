@@ -170,7 +170,9 @@ Once approved, the sender can converse with Goose — and Goose can message them
 ## Known limitations
 
 - **Linux only** — goosed discovery reads `/proc`; macOS/Windows not supported.
-- **Desktop session sidebar** — gateway sessions don't appear in Goose Desktop's sidebar (upstream issue; see [docs/desktop-integration.md](docs/desktop-integration.md)).
+- **Desktop session sidebar** — gateway sessions appear in Goose Desktop's sidebar only after a Desktop restart (`loadSessions()` runs at startup; there is no push notification for externally-created sessions). Upstream fix needed: a `sessionCreated` WebSocket event from goosed.
+- **Desktop real-time message updates** — when the gateway injects a message into an already-open session via `POST /reply`, the Desktop UI does not refresh to show the new exchange. goosed does not broadcast session writes to existing UI subscribers. Workaround: close and reopen the session in Desktop to reload the full history. Upstream fix needed: a `sessionUpdated` WebSocket event (or shared SSE broadcast) from goosed.
+- **goosed port changes on restart** — goosed binds to a random port each time Goose Desktop starts. The gateway auto-reconnects on the next inbound Signal message, but any messages received while goosed is down are lost.
 - **No session history replay** — goosed v1.30.0 has no history endpoint; restarting the gateway starts fresh sessions.
 - **No `resolve_permission` via ACP** — the tool-approval flow sends a Signal prompt but the ACP handshake cannot complete (goosed v1.30.0 limitation).
 - **One session per sender** — no threads or topics within a DM conversation.
