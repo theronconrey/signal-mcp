@@ -1,6 +1,6 @@
 # signal-mcp
 
-A self-hosted MCP server that gives any AI agent bidirectional access to Signal Messenger. Contacts (or yourself) can message a dedicated Signal number, and those conversations show up directly in Goose Desktop where both you and Goose can reply together. Today you can send a message from your phone and get a full agent reply, or you can have an agent message your phone proactively.
+The goal is a self-hosted MCP server that gives any AI agent bidirectional access to Signal Messenger, where contacts (or yourself) can message a dedicated Signal number and those conversations show up directly in Goose Desktop where both you and Goose can reply together. Today the MCP server supports sending messages from your phone and getting a full agent reply, or having an agent message your phone proactively.
 
 Built around [Goose](https://github.com/block/goose) and [signal-cli](https://github.com/AsamK/signal-cli).
 
