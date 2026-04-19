@@ -1,8 +1,8 @@
 # signal-mcp
 
-The goal is a self-hosted MCP server that gives any AI agent bidirectional access to Signal Messenger, where contacts (or yourself) can message a dedicated Signal number and those conversations show up directly in Goose Desktop where both you and Goose can reply together. Today the MCP server supports sending messages from your phone and getting a full agent reply, or having an agent message your phone proactively.
+A self-hosted MCP server that gives any AI agent bidirectional access to Signal Messenger. Contacts message a dedicated Signal number; the gateway routes conversations to an AI agent (Goose, Claude CLI, or any MCP client) and streams replies back. Agents can also send messages proactively and read inbound messages directly via MCP tools.
 
-Built around [Goose](https://github.com/block/goose) and [signal-cli](https://github.com/AsamK/signal-cli).
+Built around [signal-cli](https://github.com/AsamK/signal-cli). Goose Desktop integration uses [Goose](https://github.com/block/goose).
 
 > **Status:** Prototype. Core loop is fully implemented and smoke-tested. See [Current limitations](#current-limitations).
 
@@ -54,7 +54,7 @@ Signal (phone)   ◄── replies via signal-cli
 | signal-cli | 0.13+ | `sudo dnf install signal-cli` |
 | Python | 3.12+ | managed by `uv` |
 | uv | any | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| Goose Desktop | latest | [github.com/block/goose](https://github.com/block/goose) |
+| Goose Desktop | latest | [github.com/block/goose](https://github.com/block/goose) — optional, for Goose-based inbound replies |
 
 ---
 
@@ -100,9 +100,9 @@ systemctl --user enable --now signal-cli@+1XXXXXXXXXX
 uv run goose-signal setup
 ```
 
-The wizard checks prerequisites, asks for your bot number and access policy, and writes `~/.config/goose-signal-gateway/config.yaml`. It prints an MCP secret at the end — save it.
+The wizard checks prerequisites, asks for your bot number and access policy, and writes `~/.config/goose-signal-gateway/config.yaml`. It prints ready-to-paste connection commands for Claude CLI and Goose Desktop — save the agent key it displays.
 
-**4. Start Goose Desktop**, then start the gateway:
+**4. Start the gateway** (start Goose Desktop first if you want inbound AI replies via goosed):
 
 ```bash
 uv run goose-signal start --detach   # installs + starts as a systemd user unit
