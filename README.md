@@ -177,7 +177,8 @@ claude mcp add signal-gateway http://127.0.0.1:7322/mcp \
 | Extension Name | `Signal MCP` |
 | Type | `Streamable HTTP` *(change from the default STDIO)* |
 | Endpoint | `http://127.0.0.1:7322/mcp` |
-| Request Headers | `Authorization: Bearer <agent_key>` *(printed by `goose-signal setup`)* |
+| Header name | `Authorization` |
+| Header value | `Bearer <agent_key>` *(printed by `goose-signal setup`)* |
 
 4. Click **Add Extension**
 
