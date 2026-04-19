@@ -118,14 +118,28 @@ def start(ctx, account, detach, log_level):
 
 
 def _start_detached():
-    unit_src = Path(__file__).parent.parent.parent / "systemd" / "goose-signal-gateway.service"
+    binary = shutil.which("goose-signal") or sys.argv[0]
     unit_dst = Path.home() / ".config" / "systemd" / "user" / "goose-signal-gateway.service"
-    if not unit_src.exists():
-        err_console.print(f"[red]Unit file not found:[/red] {unit_src}")
-        err_console.print("Complete Phase 9 (systemd units) first.")
-        sys.exit(1)
     unit_dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(unit_src, unit_dst)
+    unit_dst.write_text(
+        "[Unit]\n"
+        "Description=Goose Signal Gateway\n"
+        "Documentation=https://github.com/theronconrey/signal-mcp\n"
+        "After=network-online.target\n"
+        "Wants=network-online.target\n"
+        "\n"
+        "[Service]\n"
+        "Type=simple\n"
+        f"ExecStart={binary} start\n"
+        "Restart=on-failure\n"
+        "RestartSec=5s\n"
+        "StandardOutput=journal\n"
+        "StandardError=journal\n"
+        "NoNewPrivileges=true\n"
+        "\n"
+        "[Install]\n"
+        "WantedBy=default.target\n"
+    )
     subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
     subprocess.run(["systemctl", "--user", "enable", "--now",
                     "goose-signal-gateway"], check=True)
@@ -541,11 +555,13 @@ def setup(ctx):
         allowed.append(home)
 
     # Build and save config
+    import secrets
     cfg = Config()
     cfg.daemon.account = account
     cfg.access.dm_policy = policy
     cfg.access.allowed_users = allowed
     cfg.home_conversation = home
+    cfg.mcp.secret = secrets.token_urlsafe(32)
 
     if config_path.exists():
         if not click.confirm(f"\nOverwrite existing config at {config_path}?"):
@@ -566,6 +582,8 @@ def setup(ctx):
                       "start it before running goose-signal start")
 
     console.print("\n[bold]Setup complete.[/bold]")
+    console.print(f"\n[bold]MCP secret[/bold] (use as X-Gateway-Key header in your MCP client):")
+    console.print(f"    [yellow]{cfg.mcp.secret}[/yellow]")
     console.print("\nStart the gateway:")
     console.print("    goose-signal start               [dim](foreground)[/dim]")
     console.print("    goose-signal start --detach      [dim](systemd user unit)[/dim]")

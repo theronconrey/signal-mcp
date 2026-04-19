@@ -85,57 +85,68 @@ uv sync
 
 ## Setup
 
-**1. Link signal-cli to a Signal account** (if not already done):
+Complete these steps once, in order.
+
+**1. Link a Signal account to signal-cli**
+
+You need a dedicated Signal number for the bot (a second number, SIM, or VoIP number).
 
 ```bash
 signal-cli link -n "signal-mcp" | qrencode -t ansiutf8
 ```
 
-On your phone: **Signal → Settings → Linked devices → Link new device** → scan.
+On your phone: **Settings → Linked devices → Link new device** → scan the QR code.
 
-**2. Run the setup wizard:**
+**2. Start the signal-cli daemon**
+
+```bash
+signal-cli --account +1XXXXXXXXXX daemon --http 127.0.0.1:8080
+```
+
+Or install it as a persistent user service (replace `+1XXXXXXXXXX` with your bot number):
+
+```bash
+systemctl --user enable --now signal-cli@+1XXXXXXXXXX
+```
+
+**3. Run the setup wizard**
 
 ```bash
 uv run goose-signal setup
 ```
 
-The wizard will:
-1. Check prerequisites (`signal-cli`, `java`, `goosed`)
-2. Ask for your Signal bot phone number (E.164, e.g. `+16125551234`)
-3. Ask for access policy (`pairing` is the default)
-4. Ask for a home conversation (where startup/shutdown notifications go)
-5. Generate a `gateway_secret` for MCP auth
-6. Write `~/.config/goose-signal-gateway/config.yaml`
+The wizard checks prerequisites, asks for your bot number and access policy, and writes `~/.config/goose-signal-gateway/config.yaml`. It prints an MCP secret at the end — save it.
+
+**4. Start Goose Desktop**, then start the gateway:
+
+```bash
+uv run goose-signal start --detach   # installs + starts as a systemd user unit
+```
+
+**5. Verify**
+
+```bash
+uv run goose-signal doctor
+```
+
+All checks green means you're ready. Send a message to your bot number from Signal to test.
 
 ---
 
 ## Running
 
-### As a systemd user service (recommended)
-
 ```bash
-# Install and enable
-cp systemd/goose-signal-gateway.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now goose-signal-gateway
-
-# Check status
-systemctl --user status goose-signal-gateway
+# Status
+goose-signal status
 
 # Follow logs
-journalctl --user -u goose-signal-gateway -f
-```
+goose-signal logs -f
 
-### Foreground
+# Stop
+goose-signal stop
 
-```bash
-uv run goose-signal start
-```
-
-### Health check
-
-```bash
-uv run goose-signal doctor
+# Foreground (debug)
+goose-signal start
 ```
 
 ---
