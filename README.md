@@ -36,16 +36,25 @@ goosed  ──────────────────────► Mi
 
 ---
 
-## MCP Extension
+## Goose Desktop Extension
 
-Once the gateway is running, register it in any MCP-compatible client:
+Once the gateway is running, register it in Goose Desktop:
+
+1. Select **Extensions** in the left column
+2. Click **Add custom extension**
+3. Fill in the fields as follows:
+
+![Add custom extension dialog](docs/goose-add-extension.png)
 
 | Field | Value |
 |-------|-------|
-| Type | HTTP |
+| Extension Name | `Signal MCP` |
+| Type | `Streamable HTTP` *(change from the default STDIO)* |
 | Endpoint | `http://127.0.0.1:7322/mcp` |
 | Header name | `X-Gateway-Key` |
-| Header value | *(your `gateway_secret` from config.yaml)* |
+| Header value | *(your MCP secret — printed by `goose-signal setup`)* |
+
+4. Click **Add Extension**
 
 ### Available tools
 
