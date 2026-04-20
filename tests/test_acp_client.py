@@ -1,12 +1,12 @@
 import pytest
 import respx
 import httpx
-from goose_signal_gateway.acp_client import (
+from hollerback.acp_client import (
     AcpClient,
     AcpStreamInterruptedError,
     SessionNotification,
 )
-from goose_signal_gateway.goosed_client import GoosedConfig
+from hollerback.goosed_client import GoosedConfig
 
 BASE = "https://127.0.0.1:19999"
 CONFIG = GoosedConfig(port=19999, secret="test-secret")

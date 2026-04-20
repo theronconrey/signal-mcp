@@ -7,16 +7,16 @@
 
 ## Direction
 
-Reframing the project from `goose-signal-gateway` (Goose-specific) to `signal-mcp` (any MCP client). The gateway becomes one consumer; the MCP server is the product.
+Reframing the project from `hollerback` (Goose-specific) to `hollerback` (any MCP client). The gateway becomes one consumer; the MCP server is the product.
 
-**Repo renamed:** `theronconrey/goose-signal-gateway` → `theronconrey/signal-mcp`
+**Repo renamed:** `theronconrey/hollerback` → `theronconrey/hollerback`
 
 ---
 
 ## Architecture Decision
 
 ### Auth
-- `gateway_secret` generated once during `goose-signal setup`, stored in `config.yaml`
+- `gateway_secret` generated once during `hollerback setup`, stored in `config.yaml`
 - User pastes secret into Goose Desktop → Extensions → Add custom extension → Request Headers: `X-Gateway-Key: <secret>`
 - Same key = one credential, two uses (Signal setup + MCP registration)
 - All localhost — no OAuth complexity needed
@@ -104,7 +104,7 @@ This is a small change on their side that solves the problem cleanly without fra
 
 1. `git checkout mcp-server` (already created, clean branch off master)
 2. Add `mcp` package to `pyproject.toml` dependencies
-3. Create `src/goose_signal_gateway/mcp_server.py`
+3. Create `src/hollerback/mcp_server.py`
    - FastMCP or raw MCP HTTP server
    - Auth middleware: validate `X-Gateway-Key` header against `config.gateway_secret`
    - Tool: `get_signal_identity` → returns `cfg.daemon.account`
@@ -112,6 +112,6 @@ This is a small change on their side that solves the problem cleanly without fra
    - Tool: `send_signal_message(recipient, message)` → validates against session map, calls `SignalClient.send()`
 4. Wire MCP server startup into `Gateway.start()` as a background asyncio task
 5. Add `mcp_port` to config (default: 7322)
-6. Add `gateway_secret` to config + generate during `goose-signal setup`
+6. Add `gateway_secret` to config + generate during `hollerback setup`
 7. Update systemd unit if port needs to be exposed
 8. Test: register in Goose Desktop, call each tool, verify Signal message arrives

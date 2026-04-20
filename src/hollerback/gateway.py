@@ -24,7 +24,7 @@ from .signal_client import IncomingMessage, SignalClient
 
 log = logging.getLogger(__name__)
 
-_STATE = Path.home() / ".local" / "share" / "goose-signal-gateway"
+_STATE = Path.home() / ".local" / "share" / "hollerback"
 DEFAULT_SESSION_MAP_PATH = _STATE / "sessions.json"
 DEFAULT_PAIRING_PATH = _STATE / "pairing.json"
 
@@ -43,7 +43,7 @@ class Gateway:
         mcp_enabled: bool = False,
         mcp_host: str = "127.0.0.1",
         mcp_port: int = 7322,
-        mcp_agents: list = [],
+        mcp_agents: list | None = None,
         acp_enabled: bool = True,
     ):
         self._signal_account = signal_account
@@ -70,7 +70,7 @@ class Gateway:
         self._mcp_enabled = mcp_enabled
         self._mcp_host = mcp_host
         self._mcp_port = mcp_port
-        self._mcp_agents = mcp_agents
+        self._mcp_agents = mcp_agents or []
         self._acp_enabled = acp_enabled
 
         self._tasks: set[asyncio.Task] = set()
@@ -109,7 +109,7 @@ class Gateway:
             try:
                 await self._signal.send(
                     self._home_conversation,
-                    "goose-signal-gateway started.",
+                    "hollerback started.",
                 )
             except Exception as e:
                 log.warning("Failed to send startup notification: %s", e)
@@ -126,7 +126,7 @@ class Gateway:
             try:
                 await self._signal.send(
                     self._home_conversation,
-                    "goose-signal-gateway stopping.",
+                    "hollerback stopping.",
                 )
             except Exception:
                 pass
@@ -229,8 +229,7 @@ class Gateway:
             if code is None:
                 reply = ALREADY_PENDING_MESSAGE
             else:
-                ttl_min = int(self._pairing._ttl // 60)
-                reply = PAIRING_MESSAGE_TEMPLATE.format(code=code, ttl_minutes=ttl_min)
+                reply = PAIRING_MESSAGE_TEMPLATE.format(code=code, ttl_minutes=self._pairing.ttl_minutes)
                 log.info("Pairing code %s issued for %s", code, sender)
             await self._signal.send(sender, reply)
             return

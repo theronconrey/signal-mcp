@@ -3,7 +3,7 @@ import time
 import pytest
 from datetime import timedelta
 from pathlib import Path
-from goose_signal_gateway.pairing import PairingStore
+from hollerback.pairing import PairingStore
 
 
 @pytest.fixture

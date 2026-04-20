@@ -37,7 +37,10 @@ def discover_goosed() -> GoosedConfig:
         try:
             pid = pid_dir.split("/")[2]
             exe = os.readlink(pid_dir)
-            if "goosed" not in exe:
+            if os.path.basename(exe) != "goosed":
+                continue
+
+            if os.stat(f"/proc/{pid}").st_uid != os.getuid():
                 continue
 
             env_path = f"/proc/{pid}/environ"

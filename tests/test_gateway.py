@@ -6,9 +6,9 @@ import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch, call
 
-from goose_signal_gateway.gateway import Gateway
-from goose_signal_gateway.acp_client import SessionNotification
-from goose_signal_gateway.signal_client import IncomingMessage
+from hollerback.gateway import Gateway
+from hollerback.acp_client import SessionNotification
+from hollerback.signal_client import IncomingMessage
 
 
 def make_notif(kind, session_id="s1", **payload):
@@ -61,9 +61,9 @@ async def drive(gw, signal, acp, msgs):
     """Wire mocks into gateway and drive messages through _handle."""
     gw._signal = signal
     gw._acp = acp
-    from goose_signal_gateway.approvals import ApprovalCoordinator
+    from hollerback.approvals import ApprovalCoordinator
     gw._approvals = ApprovalCoordinator(signal, acp)
-    from goose_signal_gateway.session_map import SessionMap
+    from hollerback.session_map import SessionMap
     gw._sessions = await SessionMap.load(gw._session_map_path)
     for msg in msgs:
         await gw._handle(msg)
@@ -169,7 +169,7 @@ async def test_duplicate_dropped(tmp_path):
 
 
 async def test_acp_stream_interrupted_reports_error(tmp_path):
-    from goose_signal_gateway.acp_client import AcpStreamInterruptedError
+    from hollerback.acp_client import AcpStreamInterruptedError
 
     gw = build_gateway(tmp_path)
     signal = mock_signal()

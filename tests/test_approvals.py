@@ -3,8 +3,8 @@ import pytest
 from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock
 
-from goose_signal_gateway.approvals import ApprovalCoordinator, _TIMEOUT_MESSAGE, _WAITING_MESSAGE, _DESKTOP_MESSAGE
-from goose_signal_gateway.session_map import ConversationKey
+from hollerback.approvals import ApprovalCoordinator, _TIMEOUT_MESSAGE, _WAITING_MESSAGE, _DESKTOP_MESSAGE
+from hollerback.session_map import ConversationKey
 
 
 def make_coordinator(timeout_seconds=30):

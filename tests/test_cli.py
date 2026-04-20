@@ -3,9 +3,9 @@ import pytest
 from pathlib import Path
 from click.testing import CliRunner
 
-from goose_signal_gateway.cli import cli
-from goose_signal_gateway.config import Config, save_config
-from goose_signal_gateway.pairing import PairingStore
+from hollerback.cli import cli
+from hollerback.config import Config, save_config
+from hollerback.pairing import PairingStore
 
 
 def make_runner():
@@ -94,7 +94,7 @@ def test_pairing_list_empty(tmp_path):
 def test_pairing_approve_deny_cycle(tmp_path):
     cfg_path = write_config(tmp_path)
 
-    from goose_signal_gateway.config import load_config
+    from hollerback.config import load_config
     cfg = load_config(cfg_path)
     store = PairingStore(cfg.pairing.storage)
     code = store.request_code("+9999")
@@ -120,7 +120,7 @@ def test_pairing_approve_expired(tmp_path):
     from datetime import timedelta
     cfg_path = write_config(tmp_path)
 
-    from goose_signal_gateway.config import load_config
+    from hollerback.config import load_config
     cfg = load_config(cfg_path)
     store = PairingStore(cfg.pairing.storage, code_ttl=timedelta(seconds=1))
     code = store.request_code("+8888")

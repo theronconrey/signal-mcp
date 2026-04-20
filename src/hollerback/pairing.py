@@ -2,13 +2,14 @@
 Pairing handshake for unknown Signal senders.
 
 Unknown senders receive a one-time code; an operator must run
-`goose-signal pairing approve <code>` before the bot will process
+`hollerback pairing approve <code>` before the bot will process
 their messages. Approved senders are persisted across restarts.
 """
 
 import json
 import os
 import secrets
+import string
 import tempfile
 import time
 from dataclasses import asdict, dataclass
@@ -107,6 +108,10 @@ class PairingStore:
             return True
         return False
 
+    @property
+    def ttl_minutes(self) -> int:
+        return int(self._ttl // 60)
+
     # ── internals ─────────────────────────────────────────────────────────────
 
     def _pending_for(self, source: str) -> PendingCode | None:
@@ -153,17 +158,20 @@ class PairingStore:
             raise
 
 
+_ALPHABET = ''.join(c for c in (string.ascii_uppercase + string.digits) if c not in 'OILS10')
+
+
 def _generate_code() -> str:
-    return secrets.token_urlsafe(4).upper()[:6]
+    return ''.join(secrets.choice(_ALPHABET) for _ in range(6))
 
 
 PAIRING_MESSAGE_TEMPLATE = (
     "This bot requires pairing. Ask the operator to run:\n\n"
-    "    goose-signal pairing approve {code}\n\n"
+    "    hollerback pairing approve {code}\n\n"
     "Your pairing code expires in {ttl_minutes} minutes."
 )
 
 ALREADY_PENDING_MESSAGE = (
     "A pairing code was already issued for your number. "
-    "Ask the operator to run `goose-signal pairing list` to find it."
+    "Ask the operator to run `hollerback pairing list` to find it."
 )

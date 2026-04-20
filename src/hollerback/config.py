@@ -1,7 +1,7 @@
 """
 Gateway configuration model.
 
-Config is stored as YAML at ~/.config/goose-signal-gateway/config.yaml.
+Config is stored as YAML at ~/.config/hollerback/config.yaml.
 Atomic writes. Missing keys fall back to defaults.
 """
 
@@ -13,9 +13,9 @@ from typing import Literal
 
 import yaml
 
-DEFAULT_CONFIG_PATH = Path.home() / ".config" / "goose-signal-gateway" / "config.yaml"
-_STATE = Path.home() / ".local" / "state" / "goose-signal-gateway"
-_SHARE = Path.home() / ".local" / "share" / "goose-signal-gateway"
+DEFAULT_CONFIG_PATH = Path.home() / ".config" / "hollerback" / "config.yaml"
+_STATE = Path.home() / ".local" / "state" / "hollerback"
+_SHARE = Path.home() / ".local" / "share" / "hollerback"
 
 
 @dataclass

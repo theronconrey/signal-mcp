@@ -1,12 +1,12 @@
 [Unit]
-Description=Goose Signal Gateway
-Documentation=https://github.com/theronconrey/goose-signal-gateway
+Description=Hollerback
+Documentation=https://github.com/theronconrey/hollerback
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/home/theron/Projects/Personal/goose-signal-gateway/.venv/bin/goose-signal start
+ExecStart=/home/theron/Projects/Personal/hollerback/.venv/bin/hollerback start
 Restart=on-failure
 RestartSec=5s
 StandardOutput=journal

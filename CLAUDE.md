@@ -1,4 +1,4 @@
-# signal-mcp
+# hollerback
 
 ## What this is
 
@@ -39,7 +39,7 @@ The gateway starts and operates without goosed. When goosed is unavailable:
 
 ```bash
 uv sync
-uv run goose-signal setup   # first time
-uv run goose-signal start   # foreground
-uv run goose-signal start --detach   # systemd user unit
+uv run hollerback setup   # first time
+uv run hollerback start   # foreground
+uv run hollerback start --detach   # systemd user unit
 ```

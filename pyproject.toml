@@ -1,10 +1,25 @@
 [project]
-name = "goose-signal-gateway"
+name = "hollerback"
 version = "0.1.0"
-description = "Bridge Signal Messenger to Goose Desktop via the goosed REST API"
+description = "A Signal Messenger gateway for your local Goose agent"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
+authors = [
+    { name = "Theron Conrey", email = "theron@conrey.org" },
+]
+keywords = ["signal", "goose", "mcp", "gateway", "ai", "agent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: No Input/Output (Daemon)",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+    "Topic :: Internet",
+]
 dependencies = [
     "click>=8.3.2",
     "httpx>=0.28.1",
@@ -13,8 +28,13 @@ dependencies = [
     "rich>=15.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/theronconrey/hollerback"
+Source = "https://github.com/theronconrey/hollerback"
+"Bug Tracker" = "https://github.com/theronconrey/hollerback/issues"
+
 [project.scripts]
-goose-signal = "goose_signal_gateway.cli:main"
+hollerback = "hollerback.cli:main"
 
 [dependency-groups]
 dev = [

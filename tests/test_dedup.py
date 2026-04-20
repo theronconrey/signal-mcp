@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from goose_signal_gateway.dedup import MessageDeduplicator
+from hollerback.dedup import MessageDeduplicator
 
 
 @pytest.mark.asyncio

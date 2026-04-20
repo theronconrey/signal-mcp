@@ -1,5 +1,5 @@
 """
-goose-signal-gateway entrypoint.
+hollerback entrypoint.
 
 Usage:
     uv run main.py --account +1XXXXXXXXXX
@@ -10,7 +10,7 @@ import asyncio
 import logging
 import signal
 
-from src.goose_signal_gateway.gateway import Gateway
+from src.hollerback.gateway import Gateway
 
 
 def main():

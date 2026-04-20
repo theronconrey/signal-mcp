@@ -2,7 +2,7 @@ import asyncio
 import json
 import pytest
 from pathlib import Path
-from goose_signal_gateway.session_map import ConversationKey, SessionMap
+from hollerback.session_map import ConversationKey, SessionMap
 
 
 @pytest.fixture

@@ -9,6 +9,7 @@ signal-cli returns: "Receive command cannot be used if messages are already
 being received." Use subscribe() to stream events instead.
 """
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass
@@ -36,6 +37,7 @@ class SignalClient:
         self._account = account
         self._client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=None))
         self._rpc_id = 0
+        self.supports_edit: bool | None = None
 
     def _next_id(self) -> int:
         self._rpc_id += 1
@@ -138,7 +140,14 @@ class SignalClient:
         async with self._client.stream("GET", SIGNAL_CLI_EVENTS) as resp:
             resp.raise_for_status()
             event_type = None
-            async for line in resp.aiter_lines():
+            lines = resp.aiter_lines().__aiter__()
+            while True:
+                try:
+                    line = await asyncio.wait_for(lines.__anext__(), timeout=120)
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError:
+                    raise TimeoutError("SSE stream idle for 120 seconds — no data received")
                 if line.startswith("event:"):
                     event_type = line[6:].strip()
                 elif line.startswith("data:"):

@@ -1,10 +1,11 @@
 """
-goose-signal CLI entry point.
+hollerback CLI entry point.
 """
 
 import asyncio
 import importlib.metadata
 import logging
+import os
 import shutil
 import signal
 import subprocess
@@ -27,7 +28,7 @@ def _load_or_exit(path: Path) -> Config:
         return load_config(path)
     except FileNotFoundError:
         err_console.print(f"[red]Config not found:[/red] {path}")
-        err_console.print("Run [bold]goose-signal setup[/bold] first.")
+        err_console.print("Run [bold]hollerback setup[/bold] first.")
         sys.exit(1)
     except Exception as e:
         err_console.print(f"[red]Config error:[/red] {e}")
@@ -51,7 +52,7 @@ def cli(ctx, config_path):
 def version():
     """Print version and exit."""
     try:
-        v = importlib.metadata.version("goose-signal-gateway")
+        v = importlib.metadata.version("hollerback")
     except importlib.metadata.PackageNotFoundError:
         v = "dev"
     console.print(v)
@@ -120,13 +121,13 @@ def start(ctx, account, detach, log_level):
 
 
 def _start_detached():
-    binary = shutil.which("goose-signal") or sys.argv[0]
-    unit_dst = Path.home() / ".config" / "systemd" / "user" / "goose-signal-gateway.service"
+    binary = shutil.which("hollerback") or sys.argv[0]
+    unit_dst = Path.home() / ".config" / "systemd" / "user" / "hollerback.service"
     unit_dst.parent.mkdir(parents=True, exist_ok=True)
     unit_dst.write_text(
         "[Unit]\n"
         "Description=Goose Signal Gateway\n"
-        "Documentation=https://github.com/theronconrey/signal-mcp\n"
+        "Documentation=https://github.com/theronconrey/hollerback\n"
         "After=network-online.target\n"
         "Wants=network-online.target\n"
         "\n"
@@ -144,16 +145,16 @@ def _start_detached():
     )
     subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
     subprocess.run(["systemctl", "--user", "enable", "--now",
-                    "goose-signal-gateway"], check=True)
+                    "hollerback"], check=True)
     result = subprocess.run(
-        ["systemctl", "--user", "is-active", "goose-signal-gateway"],
+        ["systemctl", "--user", "is-active", "hollerback"],
         capture_output=True, text=True
     )
     if result.stdout.strip() == "active":
-        console.print("[green]✓[/green] goose-signal-gateway is active.")
+        console.print("[green]✓[/green] hollerback is active.")
     else:
         err_console.print("[red]Unit did not become active.[/red] "
-                          "Run: journalctl --user -u goose-signal-gateway")
+                          "Run: journalctl --user -u hollerback")
         sys.exit(1)
 
 
@@ -163,7 +164,7 @@ def _start_detached():
 def stop():
     """Stop the systemd user unit."""
     result = subprocess.run(
-        ["systemctl", "--user", "stop", "goose-signal-gateway"],
+        ["systemctl", "--user", "stop", "hollerback"],
         capture_output=True, text=True
     )
     if result.returncode == 0:
@@ -179,7 +180,7 @@ def stop():
 def status():
     """Show gateway running status."""
     result = subprocess.run(
-        ["systemctl", "--user", "is-active", "goose-signal-gateway"],
+        ["systemctl", "--user", "is-active", "hollerback"],
         capture_output=True, text=True
     )
     state = result.stdout.strip()
@@ -193,7 +194,7 @@ def status():
 @click.option("-f", "--follow", is_flag=True, help="Follow output.")
 def logs(follow):
     """Tail gateway logs via journald."""
-    cmd = ["journalctl", "--user", "-u", "goose-signal-gateway", "--no-pager"]
+    cmd = ["journalctl", "--user", "-u", "hollerback", "--no-pager"]
     if follow:
         cmd.append("-f")
     subprocess.run(cmd)
@@ -240,7 +241,7 @@ def _run_doctor(config_path: Path) -> list[tuple[str, bool, str]]:
         check("Config file exists and parses", True, str(config_path))
     except FileNotFoundError:
         check("Config file exists and parses", False,
-              f"not found — run: goose-signal setup")
+              f"not found — run: hollerback setup")
         return checks
     except Exception as e:
         check("Config file exists and parses", False, str(e))
@@ -349,18 +350,18 @@ def _run_doctor(config_path: Path) -> list[tuple[str, bool, str]]:
           "goosed v1.30.0 lacks metadata field — upstream issue pending")
 
     # 12. systemd unit installed
-    unit = Path.home() / ".config" / "systemd" / "user" / "goose-signal-gateway.service"
+    unit = Path.home() / ".config" / "systemd" / "user" / "hollerback.service"
     check("systemd unit installed", unit.exists(),
-          str(unit) if unit.exists() else "run: goose-signal start --detach")
+          str(unit) if unit.exists() else "run: hollerback start --detach")
 
     # 13. systemd unit active
     result = subprocess.run(
-        ["systemctl", "--user", "is-active", "goose-signal-gateway"],
+        ["systemctl", "--user", "is-active", "hollerback"],
         capture_output=True, text=True
     )
     active = result.stdout.strip() == "active"
     check("systemd unit active", active,
-          "" if active else "run: goose-signal start --detach")
+          "" if active else "run: hollerback start --detach")
 
     # 14. home_conversation in allowed_users
     hc = cfg.home_conversation
@@ -499,7 +500,7 @@ def pairing_revoke(ctx, source):
 def setup(ctx):
     """Interactive first-run setup wizard."""
     config_path: Path = ctx.obj["config_path"]
-    console.rule("[bold]goose-signal-gateway setup[/bold]")
+    console.rule("[bold]hollerback setup[/bold]")
 
     # Prerequisites
     console.print("\n[bold]Checking prerequisites...[/bold]")
@@ -573,6 +574,11 @@ def setup(ctx):
     save_config(cfg, config_path)
     console.print(f"\n[green]✓[/green] Config written to {config_path}")
 
+    key_file = config_path.parent / "agent-keys" / "default.key"
+    key_file.parent.mkdir(parents=True, exist_ok=True)
+    key_file.write_text(cfg.mcp.agents[0].key)
+    os.chmod(key_file, 0o600)
+
     # Test signal-cli daemon
     console.print("\n[bold]Testing connections...[/bold]")
     try:
@@ -581,26 +587,24 @@ def setup(ctx):
         console.print("[green]✓[/green] signal-cli daemon reachable")
     except Exception:
         console.print("[yellow]⚠[/yellow] signal-cli daemon not running — "
-                      "start it before running goose-signal start")
+                      "start it before running hollerback start")
 
     console.print("\n[bold]Setup complete.[/bold]")
     mcp_url = f"http://{cfg.mcp.host}:{cfg.mcp.port}/mcp"
-    first_key = cfg.mcp.agents[0].key if cfg.mcp.agents else ""
-    console.print(f"\n[bold]MCP agent key (\"default\")[/bold]:")
-    console.print(f"    [yellow]{first_key}[/yellow]")
+    console.print(f"\nMCP agent key written to: {key_file}")
     console.print("\n[bold]Claude CLI setup:[/bold]")
-    console.print(f'    claude mcp add signal-gateway {mcp_url} \\')
-    console.print(f'      --header "Authorization: Bearer {first_key}"')
+    console.print(f'    claude mcp add hollerback {mcp_url} \\')
+    console.print(f'      --header "Authorization: Bearer $(cat {key_file})"')
     console.print("\n[bold]Goose Desktop setup:[/bold]")
     console.print("    Extensions → Add custom extension → HTTP")
     console.print(f"    Endpoint: {mcp_url}")
-    console.print(f'    Request Headers: Authorization: Bearer {first_key}')
+    console.print(f'    Request Headers: Authorization: Bearer $(cat {key_file})')
     console.print("\n[dim]To add more agents (party line), add entries under mcp.agents in config.[/dim]")
     console.print("\nStart the gateway:")
-    console.print("    goose-signal start               [dim](foreground)[/dim]")
-    console.print("    goose-signal start --detach      [dim](systemd user unit)[/dim]")
+    console.print("    hollerback start               [dim](foreground)[/dim]")
+    console.print("    hollerback start --detach      [dim](systemd user unit)[/dim]")
     console.print("\nVerify health:")
-    console.print("    goose-signal doctor")
+    console.print("    hollerback doctor")
 
 
 def main():

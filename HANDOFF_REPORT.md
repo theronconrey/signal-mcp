@@ -3,7 +3,7 @@
 **Date:** 2026-04-19  
 **goosed version:** v1.30.0 (Goose Desktop, Fedora)  
 **signal-cli version:** 0.14.2  
-**Repo:** theronconrey/signal-mcp
+**Repo:** theronconrey/hollerback
 
 ---
 
@@ -24,7 +24,7 @@
 | 7c — Desktop → Signal forwarding | ⏭ Deferred | Blocked on Desktop session visibility upstream fix |
 | 8 — CLI | ✅ Complete | `cli.py` — start, stop, status, logs, doctor, pairing, sessions, setup |
 | 9 — systemd units | ✅ Complete | `systemd/` directory; service running on borealis.home |
-| 10 — Documentation | ✅ Complete | README rewritten to reflect signal-mcp direction |
+| 10 — Documentation | ✅ Complete | README rewritten to reflect hollerback direction |
 | 11 — End-to-end smoke test | ✅ Complete | Tested live; read receipts, replies, MCP tools all verified |
 | 12 — MCP server | ✅ Complete | `mcp_server.py` — bidirectional Signal via MCP |
 
@@ -90,6 +90,6 @@ Gateway assumes goosed is already running. Auto-spawning goosed as a child proce
 ## Next steps
 
 1. File the three upstream issues against `block/goose`
-2. Add `gateway_secret` generation to the `goose-signal setup` wizard (currently requires manual config edit)
+2. Add `gateway_secret` generation to the `hollerback setup` wizard (currently requires manual config edit)
 3. Phase 7c — Desktop → Signal forwarding (blocked on upstream session visibility fix)
 4. Consider publishing to PyPI once setup wizard handles MCP config automatically

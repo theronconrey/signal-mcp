@@ -81,7 +81,7 @@ def build_mcp_server(
         )
 
     mcp = FastMCP(
-        "signal-mcp",
+        "hollerback",
         lifespan=_lifespan,
         port=port,
         auth=auth_settings,
