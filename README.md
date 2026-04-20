@@ -211,13 +211,21 @@ claude mcp add hollerback http://127.0.0.1:7322/mcp \
 
 **Goose Desktop extension:**
 
+1. Select **Extensions** in the left column
+2. Click **Add custom extension**
+3. Fill in the fields as follows:
+
+<img src="docs/goose-add-extension.png" width="50%"/>
+
 | Field | Value |
 |-------|-------|
 | Extension Name | `hollerback` |
-| Type | `Streamable HTTP` *(not STDIO)* |
+| Type | `Streamable HTTP` *(change from the default STDIO)* |
 | Endpoint | `http://127.0.0.1:7322/mcp` |
 | Header name | `Authorization` |
 | Header value | `Bearer <contents of default.key>` |
+
+4. Click **Add Extension**
 
 **Claude Desktop / Cursor / others:** standard HTTP MCP connection to `http://127.0.0.1:7322/mcp` with `Authorization: Bearer <key>`.
 
