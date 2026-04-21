@@ -20,6 +20,24 @@ Full goosed API contract: `docs/acp-findings.md`. Critical points:
 
 Auth header is `Authorization: Bearer <agent_key>` (not `X-Gateway-Key` — that was the old scheme). Keys are per-agent entries under `mcp.agents` in `config.yaml`. Backwards-compatible: a legacy `mcp.secret` field is migrated to a single `default` agent on load.
 
+## MCP usage (HTTP/SSE transport)
+
+The server uses the MCP streamable-HTTP transport. Every session requires a two-step handshake before calling tools:
+
+1. **Initialize** — `POST /mcp` with `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"...","version":"1.0"}}}`. Include `Accept: application/json, text/event-stream`. The response header `mcp-session-id` contains the session token.
+2. **Call tools** — subsequent `POST /mcp` requests must include `mcp-session-id: <token>` from step 1.
+
+## MCP tools
+
+| Tool | Purpose |
+|------|---------|
+| `get_signal_identity` | Gateway account number, mode, goosed status |
+| `list_signal_contacts` | Active paired contacts — the valid recipients for `send_signal_message` |
+| `get_messages` | Buffered inbound messages; filter by `phone_number` or `since` (ms timestamp) |
+| `send_signal_message` | Send to a paired contact or the `home_conversation` number |
+
+**Sending to the owner:** The gateway's own Signal account is `daemon.account` in `config.yaml` — that is the *gateway's* number, not the owner's. The owner's number appears in `list_signal_contacts` after they pair. Always call `list_signal_contacts` first to find valid recipients.
+
 ## Graceful degradation
 
 The gateway starts and operates without goosed. When goosed is unavailable:

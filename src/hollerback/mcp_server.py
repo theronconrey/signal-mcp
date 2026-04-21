@@ -90,7 +90,12 @@ def build_mcp_server(
 
     @mcp.tool()
     async def get_signal_identity() -> dict:
-        """Return identity and mode information for this gateway."""
+        """
+        Return identity and mode information for this gateway.
+
+        NOTE: 'account' is the gateway's own Signal number — not the owner's.
+        To find the owner or other paired humans, call list_signal_contacts.
+        """
         return {
             "account": signal_account,
             "mode": mode,
@@ -100,9 +105,11 @@ def build_mcp_server(
     @mcp.tool()
     async def list_signal_contacts() -> list[dict]:
         """
-        List Signal contacts who have initiated a conversation through this gateway.
-        Only contacts with an active session are returned — these are the numbers
-        that can be messaged via send_signal_message.
+        List humans who have paired with this gateway and can receive messages.
+
+        These are the only valid recipients for send_signal_message. Call this
+        first to discover phone numbers — do not guess or infer them from other
+        sources. The gateway owner will appear here after pairing.
         """
         from .session_map import ConversationKey
         raw = await session_map.all()
@@ -129,11 +136,11 @@ def build_mcp_server(
     @mcp.tool()
     async def send_signal_message(phone_number: str, message: str) -> dict:
         """
-        Send a Signal message to a contact.
+        Send a Signal message to a paired contact.
 
-        The contact must have previously initiated a conversation through this
-        gateway (i.e. they appear in list_signal_contacts). Messages cannot be
-        sent to unknown numbers.
+        Only contacts returned by list_signal_contacts are valid recipients —
+        call that tool first to get the correct phone number. Do not infer or
+        guess numbers from config, identity, or any other source.
         """
         from .session_map import ConversationKey
         key = ConversationKey(kind="dm", identifier=phone_number)
@@ -141,7 +148,10 @@ def build_mcp_server(
         if session_id is None:
             return {
                 "success": False,
-                "error": f"{phone_number} has not initiated a conversation through this gateway",
+                "error": (
+                    f"{phone_number} has not initiated a conversation through this gateway. "
+                    "Use list_signal_contacts to see valid recipients."
+                ),
             }
         try:
             await signal_client.send(phone_number, message)
