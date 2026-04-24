@@ -6,7 +6,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch, call
 
-from hollerback.gateway import Gateway
+from hollerback.gateway import Gateway, ProviderNotConfiguredError
+from hollerback.goosed_client import GoosedConfig
 from hollerback.acp_client import SessionNotification
 from hollerback.signal_client import IncomingMessage
 
@@ -49,11 +50,13 @@ def mock_signal():
 
 
 def mock_acp(notifs):
+    from hollerback.goosed_client import GoosedConfig
     a = MagicMock()
     a.initialize = AsyncMock()
     a.close = AsyncMock()
     a.session_new = AsyncMock(return_value="s1")
     a.session_prompt = MagicMock(side_effect=lambda sid, text: _stream(*notifs))
+    a.config = GoosedConfig(port=1, secret="x", provider="mistral", model="mistral-medium")
     return a
 
 
@@ -186,3 +189,66 @@ async def test_acp_stream_interrupted_reports_error(tmp_path):
     sent = [c.args[1] for c in signal.send.call_args_list]
     assert any("lost" in t.lower() or "try again" in t.lower() for t in sent)
     signal.send_typing.assert_any_call("+1111", stop=True)
+
+
+# ── provider/model resolution ────────────────────────────────────────────────
+
+def _gw_with_acp_env(tmp_path, *, env_provider, env_model, override_provider=None, override_model=None):
+    gw = Gateway(
+        signal_account="+10000000000",
+        session_map_path=tmp_path / "sessions.json",
+        pairing_path=tmp_path / "pairing.json",
+        signal_provider=override_provider,
+        signal_model=override_model,
+    )
+    gw._acp = MagicMock()
+    gw._acp.config = GoosedConfig(port=1, secret="x", provider=env_provider, model=env_model)
+    return gw
+
+
+def test_resolver_uses_goosed_env_when_no_override(tmp_path):
+    gw = _gw_with_acp_env(tmp_path, env_provider="openai", env_model="gpt-4o")
+    assert gw._resolve_provider_model() == ("openai", "gpt-4o")
+
+
+def test_resolver_override_wins_over_env(tmp_path):
+    gw = _gw_with_acp_env(
+        tmp_path,
+        env_provider="openai", env_model="gpt-4o",
+        override_provider="anthropic", override_model="claude-sonnet-4-6",
+    )
+    assert gw._resolve_provider_model() == ("anthropic", "claude-sonnet-4-6")
+
+
+def test_resolver_partial_override_fills_from_env(tmp_path):
+    gw = _gw_with_acp_env(
+        tmp_path,
+        env_provider="openai", env_model="gpt-4o",
+        override_model="gpt-4o-mini",
+    )
+    assert gw._resolve_provider_model() == ("openai", "gpt-4o-mini")
+
+
+def test_resolver_raises_when_unresolved(tmp_path):
+    gw = _gw_with_acp_env(tmp_path, env_provider=None, env_model=None)
+    with pytest.raises(ProviderNotConfiguredError):
+        gw._resolve_provider_model()
+
+
+def test_resolver_raises_when_only_provider_missing(tmp_path):
+    gw = _gw_with_acp_env(tmp_path, env_provider=None, env_model="gpt-4o")
+    with pytest.raises(ProviderNotConfiguredError, match="provider"):
+        gw._resolve_provider_model()
+
+
+async def test_provider_not_configured_sends_helpful_signal_message(tmp_path):
+    gw = build_gateway(tmp_path)
+    signal = mock_signal()
+    acp = mock_acp([])
+    acp.config = GoosedConfig(port=1, secret="x", provider=None, model=None)
+
+    await drive(gw, signal, acp, [msg("+1111", "hello")])
+
+    sent = [c.args[1] for c in signal.send.call_args_list]
+    assert any("not configured" in t.lower() for t in sent)
+    assert not any("something went wrong" in t.lower() for t in sent)

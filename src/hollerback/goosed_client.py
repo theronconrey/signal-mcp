@@ -11,15 +11,34 @@ import json
 import os
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import AsyncIterator
 
 import httpx
+import yaml
+
+
+_GOOSE_CONFIG_PATH = Path.home() / ".config" / "goose" / "config.yaml"
+
+
+def _read_goose_config_defaults(path: Path = _GOOSE_CONFIG_PATH) -> tuple[str | None, str | None]:
+    """Return (provider, model) from Goose's own config.yaml, or (None, None)."""
+    try:
+        with open(path) as f:
+            raw = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError):
+        return None, None
+    if not isinstance(raw, dict):
+        return None, None
+    return raw.get("GOOSE_PROVIDER"), raw.get("GOOSE_MODEL")
 
 
 @dataclass
 class GoosedConfig:
     port: int
     secret: str
+    provider: str | None = None
+    model: str | None = None
 
     @property
     def base_url(self) -> str:
@@ -28,10 +47,9 @@ class GoosedConfig:
 
 def discover_goosed() -> GoosedConfig:
     """
-    Find a running goosed process and extract its port + secret.
-
-    Reads GOOSE_SERVER__SECRET_KEY and the listening port from
-    /proc/<pid>/environ and /proc/<pid>/net/tcp6 (or ss output).
+    Find a running goosed process and extract its port, secret, and
+    GOOSE_PROVIDER / GOOSE_MODEL (when set). Reads /proc/<pid>/environ.
+    Provider and model may be None — callers should treat them as optional.
     """
     for pid_dir in glob.glob("/proc/[0-9]*/exe"):
         try:
@@ -65,7 +83,19 @@ def discover_goosed() -> GoosedConfig:
             if port is None:
                 continue
 
-            return GoosedConfig(port=port, secret=secret)
+            provider_bytes = env.get(b"GOOSE_PROVIDER")
+            model_bytes = env.get(b"GOOSE_MODEL")
+            provider = provider_bytes.decode() if provider_bytes else None
+            model = model_bytes.decode() if model_bytes else None
+
+            # Fall back to Goose's own config.yaml — Goose Desktop typically
+            # reads that file and does NOT export the values to goosed's env.
+            if provider is None or model is None:
+                yaml_provider, yaml_model = _read_goose_config_defaults()
+                provider = provider or yaml_provider
+                model = model or yaml_model
+
+            return GoosedConfig(port=port, secret=secret, provider=provider, model=model)
 
         except (OSError, PermissionError, ValueError):
             continue

@@ -38,6 +38,18 @@ The server uses the MCP streamable-HTTP transport. Every session requires a two-
 
 **Sending to the owner:** The gateway's own Signal account is `daemon.account` in `config.yaml` — that is the *gateway's* number, not the owner's. The owner's number appears in `list_signal_contacts` after they pair. Always call `list_signal_contacts` first to find valid recipients.
 
+## Message formatting contract
+
+Signal renders plain text only. `send_signal_message` rejects messages that
+contain structural Markdown (headings, code fences, multi-line bullet lists,
+`[text](url)` link syntax) with an error telling the agent to rewrite as prose.
+This is enforcement-at-the-tool-boundary: every MCP client sees the same
+description-in-context plus server-side lint, so the rule does not depend on
+any one agent's memory. Message content is never modified — length and inline
+emphasis pass through untouched. See `src/hollerback/signal_lint.py`. Extra
+owner-specific style guidance can be appended via `signal.style_prompt` in
+`config.yaml` (rendered into the tool description).
+
 ## Graceful degradation
 
 The gateway starts and operates without goosed. When goosed is unavailable:

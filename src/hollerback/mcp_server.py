@@ -27,6 +27,26 @@ from mcp.server.auth.provider import AccessToken
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
 
+from .signal_lint import detect_structural_markdown
+
+
+_SEND_DESCRIPTION = """\
+Send a Signal message to a paired contact.
+
+Only contacts returned by list_signal_contacts are valid recipients — call
+that tool first to get the correct phone number. Do not infer or guess
+numbers from config, identity, or any other source.
+
+Signal renders as plain text only. Do not use Markdown: no headings
+(# ...), no bullet lists (- ...), no code fences (```), no link syntax
+([text](url)). Compose as prose paragraphs. URLs go bare. Long messages
+are fine when the content warrants it — Signal splits them gracefully —
+but structure the thought as sentences, not as a formatted document.
+
+Messages containing structural Markdown are rejected with an error;
+rewrite as prose and resend.\
+"""
+
 
 class Identity(TypedDict):
     account: str
@@ -75,6 +95,7 @@ def build_mcp_server(
     host: str,
     port: int,
     goosed_connected: bool = False,
+    style_prompt: str | None = None,
 ) -> FastMCP:
     """
     Build and return a configured FastMCP instance.
@@ -87,6 +108,8 @@ def build_mcp_server(
     host:             host the server binds to (used for OAuth metadata URLs)
     port:             port to listen on
     goosed_connected: whether goosed is currently reachable
+    style_prompt:     optional extra style guidance appended to the
+                      send_signal_message tool description (always in context)
     """
     mode = "single" if len(agents) == 1 else "multi"
 
@@ -157,16 +180,19 @@ def build_mcp_server(
         """
         return await message_buffer.get(phone_number=phone_number, since=since)
 
-    @mcp.tool()
-    async def send_signal_message(phone_number: str, message: str) -> SendResult:
-        """
-        Send a Signal message to a paired contact.
+    send_description = _SEND_DESCRIPTION
+    if style_prompt:
+        send_description += "\n\nAdditional style guidance from this gateway owner:\n" + style_prompt
 
-        Only contacts returned by list_signal_contacts are valid recipients —
-        call that tool first to get the correct phone number. Do not infer or
-        guess numbers from config, identity, or any other source.
-        """
+    @mcp.tool(description=send_description)
+    async def send_signal_message(phone_number: str, message: str) -> SendResult:
         from .session_map import ConversationKey
+
+        lint_error = detect_structural_markdown(message)
+        if lint_error is not None:
+            log.info("MCP send_signal_message rejected: %s", lint_error)
+            return {"success": False, "error": lint_error}
+
         key = ConversationKey(kind="dm", identifier=phone_number)
         session_id = await session_map.get(key)
         if session_id is None:

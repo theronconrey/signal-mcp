@@ -24,6 +24,10 @@ from .signal_client import IncomingMessage, SignalClient
 
 log = logging.getLogger(__name__)
 
+
+class ProviderNotConfiguredError(Exception):
+    """No LLM provider/model could be resolved for an ACP auto-reply session."""
+
 _STATE = Path.home() / ".local" / "share" / "hollerback"
 DEFAULT_SESSION_MAP_PATH = _STATE / "sessions.json"
 DEFAULT_PAIRING_PATH = _STATE / "pairing.json"
@@ -44,6 +48,9 @@ class Gateway:
         mcp_host: str = "127.0.0.1",
         mcp_port: int = 7322,
         mcp_agents: list | None = None,
+        mcp_style_prompt: str | None = None,
+        signal_provider: str | None = None,
+        signal_model: str | None = None,
         acp_enabled: bool = True,
     ):
         self._signal_account = signal_account
@@ -71,6 +78,9 @@ class Gateway:
         self._mcp_host = mcp_host
         self._mcp_port = mcp_port
         self._mcp_agents = mcp_agents or []
+        self._mcp_style_prompt = mcp_style_prompt
+        self._signal_provider = signal_provider
+        self._signal_model = signal_model
         self._acp_enabled = acp_enabled
 
         self._tasks: set[asyncio.Task] = set()
@@ -150,6 +160,7 @@ class Gateway:
             host=self._mcp_host,
             port=self._mcp_port,
             goosed_connected=(self._acp is not None),
+            style_prompt=self._mcp_style_prompt,
         )
         config = uvicorn.Config(
             mcp.streamable_http_app(),
@@ -165,10 +176,16 @@ class Gateway:
     async def _goosed_reconnect_loop(self):
         while True:
             await asyncio.sleep(30)
-            if self._acp is None and self._acp_enabled:
-                success = await self._reconnect_acp()
-                if success:
-                    self._approvals = ApprovalCoordinator(self._signal, self._acp)
+            if not self._acp_enabled:
+                continue
+            if self._acp is not None and await self._acp.health_check():
+                continue
+            if self._acp is not None:
+                log.warning("goosed connection unhealthy — reconnecting")
+                self._acp = None
+            success = await self._reconnect_acp()
+            if success:
+                self._approvals = ApprovalCoordinator(self._signal, self._acp)
 
     async def _reconnect_acp(self) -> bool:
         """Re-discover goosed and reconnect. Returns True on success."""
@@ -183,6 +200,30 @@ class Gateway:
         except Exception as e:
             log.error("Failed to reconnect to goosed: %s", e)
             return False
+
+    def _resolve_provider_model(self) -> tuple[str, str]:
+        """
+        Resolve which (provider, model) to set on new ACP sessions.
+
+        Order: hollerback config overrides → goosed's own GOOSE_PROVIDER/GOOSE_MODEL.
+        Raises ProviderNotConfiguredError if neither source yields both values.
+        """
+        env_provider = self._acp.config.provider if self._acp else None
+        env_model = self._acp.config.model if self._acp else None
+        provider = self._signal_provider or env_provider
+        model = self._signal_model or env_model
+        if not provider or not model:
+            missing = []
+            if not provider:
+                missing.append("provider")
+            if not model:
+                missing.append("model")
+            raise ProviderNotConfiguredError(
+                f"Cannot create goosed session: {', '.join(missing)} unresolved. "
+                "Set GOOSE_PROVIDER/GOOSE_MODEL in the goosed environment "
+                "or signal.provider/signal.model in hollerback config.yaml."
+            )
+        return provider, model
 
     # ── main loop ─────────────────────────────────────────────────────────────
 
@@ -244,6 +285,17 @@ class Gateway:
         async with self._conv_lock(key):
             try:
                 await self._run_conversation(key, text)
+            except ProviderNotConfiguredError as e:
+                log.error("Provider/model not configured for %s: %s", sender, e)
+                try:
+                    await self._signal.send(
+                        sender,
+                        "(Goose LLM not configured — set GOOSE_PROVIDER/GOOSE_MODEL in the goosed environment, "
+                        "or signal.provider/signal.model in hollerback config.yaml)",
+                    )
+                    await self._signal.send_typing(sender, stop=True)
+                except Exception:
+                    pass
             except Exception as e:
                 log.error("Unhandled error in conversation with %s: %s", sender, e)
                 try:
@@ -264,8 +316,11 @@ class Gateway:
             session_id = None
 
         if session_id is None:
+            provider, model = self._resolve_provider_model()
             session_id = await self._acp.session_new(
                 cwd=str(Path.home()),
+                provider=provider,
+                model=model,
                 metadata={
                     "source": "signal",
                     "source_conversation": key.as_str(),

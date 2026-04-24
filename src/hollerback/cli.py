@@ -102,6 +102,9 @@ def start(ctx, account, detach, log_level):
         mcp_host=cfg.mcp.host,
         mcp_port=cfg.mcp.port,
         mcp_agents=cfg.mcp.agents,
+        mcp_style_prompt=cfg.signal.style_prompt,
+        signal_provider=cfg.signal.provider,
+        signal_model=cfg.signal.model,
     )
 
     loop = asyncio.new_event_loop()

@@ -41,6 +41,30 @@ async def test_initialize_failure_raises():
 
 
 @respx.mock
+async def test_health_check_ok():
+    respx.get(f"{BASE}/status").mock(return_value=httpx.Response(200, text="ok"))
+    client = make_client()
+    assert await client.health_check() is True
+    await client.close()
+
+
+@respx.mock
+async def test_health_check_bad_status():
+    respx.get(f"{BASE}/status").mock(return_value=httpx.Response(503, text="down"))
+    client = make_client()
+    assert await client.health_check() is False
+    await client.close()
+
+
+@respx.mock
+async def test_health_check_connect_error():
+    respx.get(f"{BASE}/status").mock(side_effect=httpx.ConnectError("refused"))
+    client = make_client()
+    assert await client.health_check() is False
+    await client.close()
+
+
+@respx.mock
 async def test_session_new_returns_id():
     respx.post(f"{BASE}/agent/start").mock(
         return_value=httpx.Response(200, json={"id": "20260418_5", "working_dir": "/home/user"})
@@ -49,7 +73,7 @@ async def test_session_new_returns_id():
         return_value=httpx.Response(200, json={})
     )
     client = make_client()
-    sid = await client.session_new(cwd="/home/user")
+    sid = await client.session_new(cwd="/home/user", provider="mistral", model="mistral-medium")
     assert sid == "20260418_5"
     await client.close()
 
@@ -65,6 +89,8 @@ async def test_session_new_metadata_accepted_without_error():
     client = make_client()
     sid = await client.session_new(
         cwd="/home/user",
+        provider="mistral",
+        model="mistral-medium",
         metadata={"source": "signal", "display_name": "Signal: +1"},
     )
     assert sid == "s1"
@@ -122,7 +148,7 @@ async def test_auth_token_sent_in_header():
         return_value=httpx.Response(200, json={})
     )
     client = make_client()
-    await client.session_new(cwd="/")
+    await client.session_new(cwd="/", provider="mistral", model="mistral-medium")
     req = respx.calls.last.request
     assert req.headers.get("x-secret-key") == "test-secret"
     await client.close()

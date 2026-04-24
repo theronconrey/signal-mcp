@@ -89,11 +89,24 @@ class AcpClient:
             raise RuntimeError(f"goosed health check failed: {resp.status_code} {resp.text!r}")
         return InitializeResult(server_url=self._config.base_url, healthy=True)
 
+    async def health_check(self, timeout: float = 3.0) -> bool:
+        """Soft health probe. Returns False instead of raising on any failure."""
+        try:
+            resp = await self._client.get("/status", timeout=timeout)
+            return resp.status_code == 200 and resp.text.strip() == "ok"
+        except Exception:
+            return False
+
+    @property
+    def config(self) -> GoosedConfig:
+        """Read-only access to the discovered goosed config (port, secret, provider, model)."""
+        return self._config
+
     async def session_new(
         self,
         cwd: str,
-        provider: str = "mistral",
-        model: str = "mistral-medium",
+        provider: str,
+        model: str,
         mcp_servers: list[dict] | None = None,
         metadata: dict | None = None,
     ) -> str:

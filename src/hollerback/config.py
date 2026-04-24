@@ -75,6 +75,15 @@ class McpConfig:
 
 
 @dataclass
+class SignalConfig:
+    style_prompt: str | None = None
+    # Optional overrides for the ACP auto-reply path. When unset, hollerback
+    # mirrors whatever goosed was launched with (GOOSE_PROVIDER / GOOSE_MODEL).
+    provider: str | None = None
+    model: str | None = None
+
+
+@dataclass
 class Config:
     daemon: DaemonConfig = field(default_factory=DaemonConfig)
     acp: AcpConfig = field(default_factory=AcpConfig)
@@ -84,6 +93,7 @@ class Config:
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     stream: StreamConfig = field(default_factory=StreamConfig)
     mcp: McpConfig = field(default_factory=McpConfig)
+    signal: SignalConfig = field(default_factory=SignalConfig)
     home_conversation: str | None = None
 
 
@@ -104,6 +114,7 @@ def load_config(path: Path = DEFAULT_CONFIG_PATH) -> Config:
     lo = raw.get("logging", {})
     st = raw.get("stream", {})
     mc = raw.get("mcp", {})
+    sg = raw.get("signal", {})
 
     agents_raw = mc.get("agents", [])
     if agents_raw:
@@ -146,6 +157,11 @@ def load_config(path: Path = DEFAULT_CONFIG_PATH) -> Config:
             port=mc.get("port", 7322),
             agents=agents,
         ),
+        signal=SignalConfig(
+            style_prompt=sg.get("style_prompt"),
+            provider=sg.get("provider"),
+            model=sg.get("model"),
+        ),
         home_conversation=raw.get("home_conversation"),
     )
 
@@ -182,6 +198,11 @@ def save_config(config: Config, path: Path = DEFAULT_CONFIG_PATH) -> None:
             "host": config.mcp.host,
             "port": config.mcp.port,
             "agents": [{"name": e.name, "key": e.key} for e in config.mcp.agents],
+        },
+        "signal": {
+            "style_prompt": config.signal.style_prompt,
+            "provider": config.signal.provider,
+            "model": config.signal.model,
         },
         "home_conversation": config.home_conversation,
     }
